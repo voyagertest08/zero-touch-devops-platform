@@ -38,6 +38,12 @@ jobs:
       working-directory: terraform
       run: terraform init
 
+    - name: Terraform Import EKS Cluster (one-time)
+      working-directory: terraform
+      run: |
+        terraform import aws_eks_cluster.cluster zero-touch-cluster || true
+
+
     # 5️⃣ Terraform Apply (EKS CREATED HERE)
     - name: Terraform Apply
       working-directory: terraform
