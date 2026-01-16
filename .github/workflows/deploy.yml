@@ -1,0 +1,38 @@
+name: Zero Touch Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      APP_NAME: ${{ github.event.repository.name }}
+      DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ap-south-1
+
+    - run: docker build -t $APP_NAME ./app
+
+    - run: |
+        docker tag $APP_NAME:latest ${{ secrets.ECR_URL }}/$APP_NAME:latest
+        docker push ${{ secrets.ECR_URL }}/$APP_NAME:latest
+
+    - run: |
+        export IMAGE_URI=${{ secrets.ECR_URL }}/$APP_NAME:latest
+        chmod +x scripts/inject.sh
+        ./scripts/inject.sh
+
+    - run: kubectl apply -f k8s/
