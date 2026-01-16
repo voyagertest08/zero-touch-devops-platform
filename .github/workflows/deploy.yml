@@ -40,8 +40,13 @@ jobs:
 
     - name: Terraform Import EKS Cluster (one-time)
       working-directory: terraform
+      env:
+        TF_VAR_app_name: ${{ github.event.repository.name }}
+        TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
+        TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
       run: |
         terraform import aws_eks_cluster.cluster zero-touch-cluster || true
+
 
 
     # 5️⃣ Terraform Apply (EKS CREATED HERE)
