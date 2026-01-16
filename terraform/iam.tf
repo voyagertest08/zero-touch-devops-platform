@@ -1,6 +1,4 @@
-# -----------------------------
 # EKS CLUSTER ROLE
-# -----------------------------
 resource "aws_iam_role" "eks_cluster_role" {
   name = "eks-cluster-role"
 
@@ -19,9 +17,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# -----------------------------
-# EKS NODE ROLE (CRITICAL FIX)
-# -----------------------------
+# NODE ROLE
 resource "aws_iam_role" "eks_node_role" {
   name = "eks-node-role"
 
@@ -35,17 +31,17 @@ resource "aws_iam_role" "eks_node_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_policy_1" {
+resource "aws_iam_role_policy_attachment" "node_policy_1" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_policy_2" {
+resource "aws_iam_role_policy_attachment" "node_policy_2" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_policy_3" {
+resource "aws_iam_role_policy_attachment" "node_policy_3" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }

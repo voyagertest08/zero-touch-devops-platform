@@ -18,16 +18,18 @@ jobs:
       CLUSTER_NAME: zero-touch-cluster
 
     steps:
-    # 1️⃣ Checkout
-    - uses: actions/checkout@v4
+    # 1️⃣ Checkout code
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    # 2️⃣ AWS Auth (OIDC)
-    - uses: aws-actions/configure-aws-credentials@v4
+    # 2️⃣ AWS Auth using OIDC
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ap-south-1
 
-    # 3️⃣ Install Terraform ✅ FIX
+    # 3️⃣ Install Terraform
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
@@ -38,18 +40,7 @@ jobs:
       working-directory: terraform
       run: terraform init
 
-    - name: Terraform Import EKS Cluster (one-time)
-      working-directory: terraform
-      env:
-        TF_VAR_app_name: ${{ github.event.repository.name }}
-        TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
-        TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
-      run: |
-        terraform import aws_eks_cluster.cluster zero-touch-cluster || true
-
-
-
-    # 5️⃣ Terraform Apply (EKS CREATED HERE)
+    # 5️⃣ Terraform Apply (FULL INFRA CREATION)
     - name: Terraform Apply
       working-directory: terraform
       env:
@@ -58,7 +49,6 @@ jobs:
         TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
       run: terraform apply -auto-approve
 
-
     # 6️⃣ Configure kubectl for EKS
     - name: Configure kubectl
       run: |
@@ -66,7 +56,7 @@ jobs:
           --name $CLUSTER_NAME \
           --region ap-south-1
 
-    # 7️⃣ Login to ECR
+    # 7️⃣ Login to Amazon ECR
     - name: Login to Amazon ECR
       run: |
         aws ecr get-login-password --region ap-south-1 \
@@ -74,7 +64,7 @@ jobs:
           --username AWS \
           --password-stdin ${{ secrets.ECR_URL }}
 
-    # 8️⃣ Ensure ECR repo exists
+    # 8️⃣ Ensure ECR repository exists
     - name: Ensure ECR repository exists
       run: |
         aws ecr describe-repositories \
@@ -82,20 +72,20 @@ jobs:
         || aws ecr create-repository \
           --repository-name $APP_NAME
 
-    # 9️⃣ Build & Push Image
+    # 9️⃣ Build & Push Docker image
     - name: Build and Push Image
       run: |
         docker build -t $APP_NAME ./app
         docker tag $APP_NAME:latest ${{ secrets.ECR_URL }}/$APP_NAME:latest
         docker push ${{ secrets.ECR_URL }}/$APP_NAME:latest
 
-    # 🔟 Inject runtime values
-    - name: Inject values
+    # 🔟 Inject image + domain into manifests
+    - name: Inject runtime values
       run: |
         export IMAGE_URI=${{ secrets.ECR_URL }}/$APP_NAME:latest
         chmod +x scripts/inject.sh
         ./scripts/inject.sh
 
-    # 1️⃣1️⃣ Deploy app
+    # 1️⃣1️⃣ Deploy application to EKS
     - name: Deploy to Kubernetes
       run: kubectl apply -f k8s/
