@@ -6,10 +6,6 @@ data "aws_eks_cluster_auth" "cluster" {
   name = aws_eks_cluster.cluster.name
 }
 
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.cluster.endpoint
-  cluster_ca_certificate = base64decode(
-    data.aws_eks_cluster.cluster.certificate_authority[0].data
-  )
-  token = data.aws_eks_cluster_auth.cluster.token
+data "aws_iam_openid_connect_provider" "eks" {
+  url = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
 }
