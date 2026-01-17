@@ -39,7 +39,8 @@ jobs:
     - name: Cleanup legacy aws-auth from state (safe)
       working-directory: terraform
       run: |
-        terraform state rm kubernetes_config_map_v1.aws_auth || true
+        terraform state rm helm_release.alb_controller || true
+
 
 
     # ✅ SINGLE, FULL APPLY (SAFE NOW)
