@@ -22,8 +22,6 @@ resource "helm_release" "alb_controller" {
   version    = "1.7.1"
   namespace  = "kube-system"
 
-  create_namespace = false
-
   timeout         = 600
   wait            = true
   atomic          = true
@@ -38,6 +36,10 @@ resource "helm_release" "alb_controller" {
     {
       name  = "region"
       value = "ap-south-1"
+    },
+    {
+      name  = "awsVpcId"
+      value = aws_vpc.main.id
     },
     {
       name  = "serviceAccount.create"
@@ -60,3 +62,4 @@ resource "helm_release" "alb_controller" {
     prevent_destroy = true
   }
 }
+
