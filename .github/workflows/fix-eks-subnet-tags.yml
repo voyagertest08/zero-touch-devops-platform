@@ -1,0 +1,95 @@
+name: Fix EKS Subnet Tags (ALB)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  tag-subnets:
+    runs-on: ubuntu-latest
+
+    env:
+      # 🔒 FIXED REGION (as requested)
+      AWS_REGION: ap-south-1
+      CLUSTER_NAME: zero-touch-cluster
+
+    steps:
+    # ----------------------------------------
+    # 1️⃣ Checkout (standard)
+    # ----------------------------------------
+    - uses: actions/checkout@v4
+
+    # ----------------------------------------
+    # 2️⃣ AWS Authentication (OIDC)
+    # ----------------------------------------
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ap-south-1
+
+    # ----------------------------------------
+    # 3️⃣ Get VPC ID of EKS cluster
+    # ----------------------------------------
+    - name: Get EKS VPC ID
+      run: |
+        VPC_ID=$(aws eks describe-cluster \
+          --name $CLUSTER_NAME \
+          --query "cluster.resourcesVpcConfig.vpcId" \
+          --output text)
+
+        echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
+        echo "✅ Using VPC: $VPC_ID"
+
+    # ----------------------------------------
+    # 4️⃣ Get all subnets in the VPC
+    # ----------------------------------------
+    - name: Get VPC Subnets
+      run: |
+        SUBNETS=$(aws ec2 describe-subnets \
+          --filters Name=vpc-id,Values=$VPC_ID \
+          --query "Subnets[].SubnetId" \
+          --output text)
+
+        echo "SUBNETS=$SUBNETS" >> $GITHUB_ENV
+        echo "✅ Found subnets: $SUBNETS"
+
+    # ----------------------------------------
+    # 5️⃣ Tag subnets (EKS + ALB REQUIRED)
+    # ----------------------------------------
+    - name: Apply required subnet tags
+      run: |
+        for subnet in $SUBNETS; do
+          echo "Tagging subnet $subnet"
+
+          aws ec2 create-tags \
+            --resources $subnet \
+            --tags \
+              Key=kubernetes.io/cluster/$CLUSTER_NAME,Value=shared \
+              Key=kubernetes.io/role/elb,Value=1
+        done
+
+        echo "✅ Subnet tagging completed"
+
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: latest
+
+
+    # ----------------------------------------
+    # 6️⃣ Restart ALB Controller
+    # ----------------------------------------
+    - name: Restart AWS Load Balancer Controller
+      run: |
+        aws eks update-kubeconfig \
+          --name $CLUSTER_NAME \
+          --region ap-south-1
+
+        kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+
+        echo "♻️ ALB Controller restarted"
