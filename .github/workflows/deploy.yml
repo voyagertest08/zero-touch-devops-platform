@@ -79,6 +79,11 @@ jobs:
     # =========================
     - name: Import aws-auth if needed
       working-directory: terraform
+      env:
+        TF_VAR_app_name: ${{ github.event.repository.name }}
+        TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
+        TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
+        TF_VAR_ci_role_arn: ${{ secrets.AWS_ROLE_ARN }}
       run: |
         terraform state show kubernetes_config_map_v1.aws_auth >/dev/null 2>&1 \
         || terraform import kubernetes_config_map_v1.aws_auth kube-system/aws-auth
