@@ -1,0 +1,139 @@
+name: EKS Debug & Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  # ========= GLOBAL ENV =========
+  AWS_REGION: ap-south-1
+  CLUSTER_NAME: zero-touch-cluster
+
+  # ALB Controller
+  ALB_NAMESPACE: kube-system
+  ALB_RELEASE_NAME: aws-load-balancer-controller
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    env:
+      # ========= JOB LEVEL ENV =========
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+
+    steps:
+    # =========================
+    # Checkout
+    # =========================
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # =========================
+    # AWS Authentication (OIDC)
+    # =========================
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ env.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # =========================
+    # Install kubectl
+    # =========================
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: latest
+
+    # =========================
+    # Install Helm
+    # =========================
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: v3.14.0
+
+    # =========================
+    # Connect to EKS
+    # =========================
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig \
+          --name $CLUSTER_NAME \
+          --region $AWS_REGION
+
+    - name: Verify cluster access
+      run: |
+        echo "=== Nodes ==="
+        kubectl get nodes
+
+        echo "=== System Pods ==="
+        kubectl get pods -n kube-system
+
+    # =========================
+    # aws-auth validation
+    # =========================
+    - name: Check aws-auth ConfigMap
+      run: |
+        kubectl get configmap aws-auth \
+          -n kube-system \
+          -o yaml
+
+    # =========================
+    # ALB Controller inspection
+    # =========================
+    - name: Check ALB Controller pods
+      run: |
+        kubectl get pods \
+          -n $ALB_NAMESPACE \
+          | grep load-balancer || true
+
+    - name: Describe ALB Controller pod
+      run: |
+        kubectl describe pod \
+          -n $ALB_NAMESPACE \
+          -l app.kubernetes.io/name=$ALB_RELEASE_NAME || true
+
+    - name: View ALB Controller logs
+      run: |
+        kubectl logs \
+          -n $ALB_NAMESPACE \
+          -l app.kubernetes.io/name=$ALB_RELEASE_NAME \
+          --tail=200 || true
+
+    # =========================
+    # Helm validation
+    # =========================
+    - name: List Helm releases
+      run: helm list -A
+
+    - name: Get ALB Controller Helm values
+      run: |
+        helm get values \
+          $ALB_RELEASE_NAME \
+          -n $ALB_NAMESPACE || true
+
+    # =========================
+    # Optional: Restart controller
+    # =========================
+    - name: Restart ALB Controller
+      run: |
+        kubectl rollout restart deployment \
+          $ALB_RELEASE_NAME \
+          -n $ALB_NAMESPACE || true
+
+    # =========================
+    # Optional: Wait for readiness
+    # =========================
+    - name: Wait for ALB Controller readiness
+      run: |
+        kubectl rollout status deployment \
+          $ALB_RELEASE_NAME \
+          -n $ALB_NAMESPACE \
+          --timeout=300s || true
