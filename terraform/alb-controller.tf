@@ -24,32 +24,30 @@ resource "helm_release" "alb_controller" {
 
   create_namespace = false
 
-  timeout          = 600
-  wait             = true
-  atomic           = true
-  cleanup_on_fail  = true
-  force_update     = false
-  reuse_values     = true
+  timeout         = 600
+  wait            = true
+  atomic          = true
+  cleanup_on_fail = true
+  reuse_values    = true
 
-  set {
-    name  = "clusterName"
-    value = aws_eks_cluster.cluster.name
-  }
-
-  set {
-    name  = "region"
-    value = "ap-south-1"
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "serviceAccount.name"
-    value = kubernetes_service_account_v1.alb_controller.metadata[0].name
-  }
+  set = [
+    {
+      name  = "clusterName"
+      value = aws_eks_cluster.cluster.name
+    },
+    {
+      name  = "region"
+      value = "ap-south-1"
+    },
+    {
+      name  = "serviceAccount.create"
+      value = "false"
+    },
+    {
+      name  = "serviceAccount.name"
+      value = kubernetes_service_account_v1.alb_controller.metadata[0].name
+    }
+  ]
 
   depends_on = [
     aws_eks_node_group.nodes,
