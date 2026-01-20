@@ -1,0 +1,169 @@
+name: EKS – ALB Full Debug
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  CLUSTER_NAME: zero-touch-cluster
+  APP_NAME: ${{ github.event.repository.name }}
+  NAMESPACE: default
+  SERVICE_NAME: app-service
+  INGRESS_NAME: app-ingress
+  ALB_NAMESPACE: kube-system
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+    # -------------------------------------------------
+    # 1️⃣ Checkout
+    # -------------------------------------------------
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # -------------------------------------------------
+    # 2️⃣ AWS Auth (OIDC)
+    # -------------------------------------------------
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # -------------------------------------------------
+    # 3️⃣ Install kubectl
+    # -------------------------------------------------
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: latest
+
+    # -------------------------------------------------
+    # 4️⃣ Install Helm
+    # -------------------------------------------------
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    # -------------------------------------------------
+    # 5️⃣ Connect to EKS
+    # -------------------------------------------------
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig \
+          --name $CLUSTER_NAME \
+          --region $AWS_REGION
+
+    # -------------------------------------------------
+    # 6️⃣ Cluster sanity
+    # -------------------------------------------------
+    - name: Cluster info
+      run: |
+        echo "=== Cluster Info ==="
+        kubectl cluster-info
+
+        echo "=== Nodes ==="
+        kubectl get nodes -o wide
+
+    # -------------------------------------------------
+    # 7️⃣ Pods (app)
+    # -------------------------------------------------
+    - name: App pods
+      run: |
+        echo "=== App Pods ==="
+        kubectl get pods -n $NAMESPACE -o wide
+
+        echo "=== App Pod Logs (last 50 lines) ==="
+        kubectl logs -n $NAMESPACE \
+          -l app=$APP_NAME \
+          --tail=50 || true
+
+    # -------------------------------------------------
+    # 8️⃣ Service validation
+    # -------------------------------------------------
+    - name: Service details
+      run: |
+        echo "=== Service YAML ==="
+        kubectl get svc $SERVICE_NAME -n $NAMESPACE -o yaml
+
+        echo "=== Endpoints ==="
+        kubectl get endpoints $SERVICE_NAME -n $NAMESPACE
+
+    # -------------------------------------------------
+    # 9️⃣ Ingress validation
+    # -------------------------------------------------
+    - name: Ingress details
+      run: |
+        echo "=== Ingress YAML ==="
+        kubectl get ingress $INGRESS_NAME -n $NAMESPACE -o yaml
+
+        echo "=== Ingress Events ==="
+        kubectl describe ingress $INGRESS_NAME -n $NAMESPACE
+
+    # -------------------------------------------------
+    # 🔟 ALB Controller health
+    # -------------------------------------------------
+    - name: ALB Controller status
+      run: |
+        echo "=== ALB Controller Pods ==="
+        kubectl get pods -n $ALB_NAMESPACE \
+          -l app.kubernetes.io/name=aws-load-balancer-controller
+
+        echo "=== ALB Controller Logs ==="
+        kubectl logs -n $ALB_NAMESPACE \
+          -l app.kubernetes.io/name=aws-load-balancer-controller \
+          --tail=100 || true
+
+    # -------------------------------------------------
+    # 1️⃣1️⃣ ALB DNS + target groups
+    # -------------------------------------------------
+    - name: ALB & Target Group check
+      run: |
+        echo "=== Ingress ALB Address ==="
+        ALB_DNS=$(kubectl get ingress $INGRESS_NAME -n $NAMESPACE \
+          -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+        echo "ALB_DNS=$ALB_DNS"
+
+        if [ -z "$ALB_DNS" ]; then
+          echo "❌ ALB DNS not assigned yet"
+          exit 1
+        fi
+
+        echo "✅ ALB DNS assigned"
+
+        echo "=== Matching ALBs ==="
+        aws elbv2 describe-load-balancers \
+          --query "LoadBalancers[?DNSName=='$ALB_DNS']"
+
+    # -------------------------------------------------
+    # 1️⃣2️⃣ Route 53 check (optional)
+    # -------------------------------------------------
+    - name: Route53 record check
+      if: ${{ secrets.HOSTED_ZONE_ID != '' && secrets.DOMAIN_NAME != '' }}
+      run: |
+        echo "=== Route53 Record Lookup ==="
+        aws route53 list-resource-record-sets \
+          --hosted-zone-id ${{ secrets.HOSTED_ZONE_ID }} \
+          --query "ResourceRecordSets[?contains(Name, '${APP_NAME}.${{ secrets.DOMAIN_NAME }}')]"
+
+    # -------------------------------------------------
+    # ✅ Final summary
+    # -------------------------------------------------
+    - name: Debug summary
+      run: |
+        echo "=============================="
+        echo "DEBUG COMPLETED"
+        echo "Check each section above:"
+        echo "1. Pods running?"
+        echo "2. Service endpoints present?"
+        echo "3. Ingress events clean?"
+        echo "4. ALB controller healthy?"
+        echo "5. ALB DNS assigned?"
+        echo "6. Route53 record present?"
+        echo "=============================="
