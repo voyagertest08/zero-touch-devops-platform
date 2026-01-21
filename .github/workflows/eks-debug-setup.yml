@@ -13,7 +13,7 @@ jobs:
 
     env:
       AWS_REGION: ap-south-1
-      CLUSTER_NAME: expense-tracker-cluster
+      CLUSTER_NAME: zero-touch-cluster
       APP_NAME: ${{ github.event.repository.name }}
 
     steps:

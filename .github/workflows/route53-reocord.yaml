@@ -9,7 +9,7 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
-  CLUSTER_NAME: expense-tracker-cluster
+  CLUSTER_NAME: zero-touch-cluster
   INGRESS_NAME: app-ingress
   INGRESS_NAMESPACE: default
 
