@@ -74,22 +74,6 @@ This platform solves all of that by providing:
 
 ## 🚦 End-to-End Flow (How the Platform Works)
 
-```mermaid
-graph TD
-    A[Fork Repository] --> B[Add GitHub Secrets]
-    B --> C[Add App in /app Directory]
-    C --> D[Push to main Branch]
-    D --> E[GitHub Actions Triggered]
-
-    E --> F[Authenticate to AWS via OIDC]
-    F --> G[Provision Infra using Terraform]
-    G --> H[Build Docker Image]
-    H --> I[Push Image to Amazon ECR]
-    I --> J[Deploy App to Amazon EKS]
-    J --> K[Expose via ALB + Route 53]
-    K --> L[App Live on Public URL]
-
-    ---
 
 # 🧑‍💻 HOW TO USE THIS PLATFORM (STEP-BY-STEP)
 
