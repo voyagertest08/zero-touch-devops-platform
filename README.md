@@ -87,7 +87,7 @@ graph TD
     H --> I[Push Image to Amazon ECR]
     I --> J[Deploy App to Amazon EKS]
     J --> K[Expose via ALB + Route 53]
-    K --> L[App Live on Public URL 🎉]
+    K --> L[App Live on Public URL]
 
     ---
 
