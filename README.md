@@ -40,8 +40,8 @@ This platform solves all of that by providing:
 
 ---
 
-## 🧠 High-Level Architecture
-
+## 🧠 Architecture Diagram
+![Zero Touch DevOps Architecture](docs/Architecture.png)
 
 ## 🧰 Tech Stack
 

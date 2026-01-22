@@ -18,13 +18,13 @@ jobs:
 
     steps:
     # -------------------------------------------------
-    # 1️⃣ Checkout
+    # 1️ Checkout
     # -------------------------------------------------
     - name: Checkout repository
       uses: actions/checkout@v4
 
     # -------------------------------------------------
-    # 2️⃣ AWS Auth (OIDC)
+    # 2️ AWS Auth (OIDC)
     # -------------------------------------------------
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -33,7 +33,7 @@ jobs:
         aws-region: ap-south-1
 
     # -------------------------------------------------
-    # 3️⃣ Configure kubectl
+    # 3️ Configure kubectl
     # -------------------------------------------------
     - name: Configure kubectl
       run: |
@@ -49,21 +49,21 @@ jobs:
         kubectl describe ingress app-ingress
 
     # -------------------------------------------------
-    # 7️⃣ Verify Ingress
+    # 7️ Verify Ingress
     # -------------------------------------------------
     - name: Verify Ingress
       run: |
         kubectl get ingress
 
         if ! kubectl get ingress app-ingress > /dev/null 2>&1; then
-          echo "❌ app-ingress not found"
+          echo " app-ingress not found"
           exit 1
         fi
 
-        echo "✅ Ingress exists"
+        echo " Ingress exists"
 
     # -------------------------------------------------
-    # 8️⃣ Verify ALB Address
+    # 8️ Verify ALB Address
     # -------------------------------------------------
     - name: Verify ALB Address
       run: |
@@ -72,13 +72,13 @@ jobs:
         for i in {1..12}; do
           ADDRESS=$(kubectl get ingress app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           if [ -n "$ADDRESS" ]; then
-            echo "✅ ALB Address assigned:"
+            echo " ALB Address assigned:"
             echo "$ADDRESS"
             exit 0
           fi
-          echo "⏳ ALB not ready yet, retrying..."
+          echo " ALB not ready yet, retrying..."
           sleep 15
         done
 
-        echo "❌ ALB address was not assigned within time"
+        echo " ALB address was not assigned within time"
         exit 1

@@ -59,12 +59,12 @@ jobs:
           -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
         if [ -z "$ALB_DNS" ]; then
-          echo "❌ ALB DNS not assigned yet"
+          echo " ALB DNS not assigned yet"
           exit 1
         fi
 
         echo "ALB_DNS=$ALB_DNS" >> $GITHUB_ENV
-        echo "✅ ALB DNS: $ALB_DNS"
+        echo " ALB DNS: $ALB_DNS"
 
     # -------------------------------------------------
     # Get ALB Hosted Zone ID (required for Alias)
@@ -76,12 +76,12 @@ jobs:
           --output text)
 
         if [ -z "$ALB_ZONE_ID" ]; then
-          echo "❌ Could not determine ALB Hosted Zone ID"
+          echo " Could not determine ALB Hosted Zone ID"
           exit 1
         fi
 
         echo "ALB_ZONE_ID=$ALB_ZONE_ID" >> $GITHUB_ENV
-        echo "✅ ALB Hosted Zone ID: $ALB_ZONE_ID"
+        echo " ALB Hosted Zone ID: $ALB_ZONE_ID"
 
     # -------------------------------------------------
     # Build record name dynamically
@@ -94,7 +94,7 @@ jobs:
         echo "DOMAIN_NAME=$DOMAIN_NAME" >> $GITHUB_ENV
         echo "RECORD_NAME=$RECORD_NAME" >> $GITHUB_ENV
 
-        echo "✅ Record Name: $RECORD_NAME"
+        echo " Record Name: $RECORD_NAME"
 
     # -------------------------------------------------
     # Create / Update Route53 Alias A Record
@@ -118,4 +118,4 @@ jobs:
             }]
           }'
 
-        echo "✅ Route53 record created / updated: $RECORD_NAME"
+        echo " Route53 record created / updated: $RECORD_NAME"
